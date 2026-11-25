@@ -20,25 +20,25 @@ typedef struct{
 static long contador_en_archivo(const char *ruta, const char *palabra, int *hubo_error){
     FILE *archivo = fopen(ruta,"r");
     if (archivo == NULL){
-        fprintf(sdterr,"hgrep:  %s:  %s\n",ruta,strerror(errno));
+        fprintf(stderr,"hgrep:  %s:  %s\n",ruta,strerror(errno));
         *hubo_error = 1;
         return 0;
     }
-}
 char *linea = NULL;
 size_t capacidad = 0;
 long contador = 0;
 
-while (getline(&linea,&capacidad,archivo)!= -1){
-    if(strstr(linea, palabra)!= NULL){
-        contador++
+    while(getline(&linea,&capacidad,archivo)!= -1){
+        if(strstr(linea, palabra)!= NULL){
+            contador++;
+       }
     }
-    free(linea);
-    fclose(archivo);
-    *hubo_error = 0;
-    return contador;
-
+ free(linea);
+ fclose(archivo);
+ *hubo_error = 0;
+ return contador;
 }
+
 static void *trabajador(void *arg){
     contexto *ctx = (contexto*)arg;
     while(1){
@@ -47,7 +47,72 @@ static void *trabajador(void *arg){
         if (idx < ctx ->num_archivos){
             ctx -> siguiente++;
          }
+        pthread_mutex_unlock(&ctx->mutex_indice);
+            if (idx >= ctx->num_archivos){
+            break;
+        }
+         
+         int err=0;
+         long c = contador_en_archivo(ctx->archivos[idx], ctx->palabra, &err);
+        ctx->resultados[idx].conteo = c;
+        ctx->resultados[idx].error = err;
     }
+    
+    return NULL;
+}
+ static void mostrar_uso(void){
+    fprintf(stderr,"Uso ./hgrep [-p |-f] patron N archivos\n");
+
+    }
+int main(int argc, char *argv[]){
+    int modo_procesos = 0;
+    int modo_encuentro = 0;
+    int pos = 1;
+    if(pos < argc &&(strcmp(argv[pos],"-f") == 0 || strcmp(argv[pos],"-p" == 0))){
+        if(strcmp(argv[pos],"-f") == 0){
+            modo_procesos = 1;
+
+        }else{
+            modo_encuentro = 1;
+
+        }
+        pos++;    
+    }
+    if (argc - pos < 3){
+        mostrar_uso();
+        return 2;
+
+    }
+    const char *palabra = argv[pos];
+    char *fin = NULL;
+    long n_long = strtol(argv[pos + 1],&fin,10);
+    if(fin == argv[pos +1] || *fin != '\0'|| n_long < 1 || n_long > 64){
+        mostrar_uso();
+        return 2;
+
+    }
+   int n_trabajadores =(int)n_long;
+   char **archivos = &argv[pos + 2];
+   int num_archivos = argc - (pos + 2);
+   int num_hilos = (n_trabajadores < num_archivos) ? n_trabajadores: num_archivos;
+   
+   (void)modo_procesos;
+   (void)modo_encuentro;
+   Resultado *resultados = calloc((size_t)num_archivos, sizeof(Resultado));
+   pthread_t *hilos =  malloc((size_t)num_hilos * sizeof(pthread_t));
+   if (resultados == NULL || hilos == NULL){
+    fprintf(stderr,"hgrep: error de memoria\n");
+    free(resultados);
+    free(hilos);
+    return 2;
+      
+   }
+}
+
+
+
+
+
 
 
 
