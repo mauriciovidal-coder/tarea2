@@ -105,10 +105,58 @@ int main(int argc, char *argv[]){
     free(resultados);
     free(hilos);
     return 2;
-      
    }
-}
+contexto ctx;
+ctx.palabra = palabra;
+ctx.archivos = archivos;
+ctx.num_archivos = num_archivos;
+ctx.siguiente = 0;
+ctx.resultados = resultados;
+pthread_mutex_init(&ctx.mutex_indice, NULL);
+   for(int i = 0; i < num_hilos; i++){
+    if(pthread_create(&hilos[i],NULL, trabajador, &ctx) != 0){
+        fprintf(stderr,"hgrep: error al crear hilo\n");
+        pthread_mutex_destroy(&ctx.mutex_indice);
+        free(resultados);
+        free(hilos);
+        return 2;
+    }
+   }
+   for (int i = 0; i < num_hilos; i++){
+    pthread_join(hilos[i], NULL);
 
+   }
+   int hubo_error = 0;
+   int hubo_coincidencia = 0;
+   for(int i = 0; i < num_archivos; i++){
+    if(resultados[i].error){
+        hubo_error = 1;
+        continue;
+    }
+    if (resultados[i].conteo > 0){
+        hubo_coincidencia = 1;
+    }
+    if (num_archivos == 1){
+        printf("%s: %ld\n", archivos[i], resultados[i].conteo);
+    } 
+    else{
+        printf("%s: %ld\n", archivos[i], resultados[i].conteo);
+    }
+   }
+
+
+
+pthread_mutex_destroy(&ctx.mutex_indice);
+free(resultados);
+free(hilos);
+if(hubo_error){
+    return 2;
+}
+if(hubo_coincidencia){
+    return 0;
+}
+return 1;
+}
 
 
 
