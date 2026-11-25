@@ -4,6 +4,8 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <unistd.h>
 
 typedef struct{
     long conteo;
@@ -20,7 +22,7 @@ typedef struct{
 static long contador_en_archivo(const char *ruta, const char *palabra, int *hubo_error){
     FILE *archivo = fopen(ruta,"r");
     if (archivo == NULL){
-        fprintf(stderr,"hgrep:  %s:  %s\n",ruta,strerror(errno));
+        fprintf(stderr,"hgrep: %s: %s\n",ruta,strerror(errno));
         *hubo_error = 1;
         return 0;
     }
@@ -64,11 +66,44 @@ static void *trabajador(void *arg){
     fprintf(stderr,"Uso ./hgrep [-p |-f] patron N archivos\n");
 
     }
+static int ejecutar_procesos(const char *palabra, char **archivos, int num_archivos, int n_trabajadores,Resultado *resultados){
+    int num_hijos = (n_trabajadores < num_archivos) ? n_trabajadores : num_archivos;
+    int pipes[64][2];
+    pid_t pids[64];
+    int error_procesos = 0;
+    for(int k = 0; k < num_hijos; k++){
+        if(pipe(pipes[k]) == -1){
+            perror("hgrep: pipe");
+            for(int j = 0; j < num_hijos; j++){
+                close(pipes[j][0]);
+                close(pipes[j][1]);
+        
+            } 
+           for(int j = 0; j<k; j++ )                                                                                                                                                                                   
+        }
+      
+        pids[k] = fork();
+        if (pids[k] < 0) {
+            perror("hgrep: fork");
+            close(pipes[k][0]);
+            close(pipes[k][1]);
+            for (int j = 0; j < k; j++) {
+                close(pipes[j][0]);
+            }
+            return 1; 
+        }   
+    }
+
+    
+
+
+
+
 int main(int argc, char *argv[]){
     int modo_procesos = 0;
     int modo_encuentro = 0;
     int pos = 1;
-    if(pos < argc &&(strcmp(argv[pos],"-f") == 0 || strcmp(argv[pos],"-p" == 0))){
+    if(pos < argc &&(strcmp(argv[pos],"-f") == 0 || strcmp(argv[pos],"-p") == 0)){
         if(strcmp(argv[pos],"-f") == 0){
             modo_procesos = 1;
 
@@ -97,6 +132,16 @@ int main(int argc, char *argv[]){
    int num_hilos = (n_trabajadores < num_archivos) ? n_trabajadores: num_archivos;
    
    (void)modo_procesos;
+
+
+
+
+
+
+
+
+
+   
    (void)modo_encuentro;
    Resultado *resultados = calloc((size_t)num_archivos, sizeof(Resultado));
    pthread_t *hilos =  malloc((size_t)num_hilos * sizeof(pthread_t));
@@ -106,42 +151,42 @@ int main(int argc, char *argv[]){
     free(hilos);
     return 2;
    }
-contexto ctx;
-ctx.palabra = palabra;
-ctx.archivos = archivos;
-ctx.num_archivos = num_archivos;
-ctx.siguiente = 0;
-ctx.resultados = resultados;
-pthread_mutex_init(&ctx.mutex_indice, NULL);
-   for(int i = 0; i < num_hilos; i++){
-    if(pthread_create(&hilos[i],NULL, trabajador, &ctx) != 0){
-        fprintf(stderr,"hgrep: error al crear hilo\n");
-        pthread_mutex_destroy(&ctx.mutex_indice);
-        free(resultados);
-        free(hilos);
-        return 2;
-    }
+   contexto ctx;
+   ctx.palabra = palabra;
+   ctx.archivos = archivos;
+   ctx.num_archivos = num_archivos;
+   ctx.siguiente = 0;
+   ctx.resultados = resultados;
+   pthread_mutex_init(&ctx.mutex_indice, NULL);
+      for(int i = 0; i < num_hilos; i++){
+          if(pthread_create(&hilos[i],NULL, trabajador, &ctx) != 0){
+               fprintf(stderr,"hgrep: error al crear hilo\n");
+               pthread_mutex_destroy(&ctx.mutex_indice);
+               free(resultados);
+               free(hilos);
+               return 2;
+            }
    }
    for (int i = 0; i < num_hilos; i++){
-    pthread_join(hilos[i], NULL);
+     pthread_join(hilos[i], NULL);
 
    }
    int hubo_error = 0;
    int hubo_coincidencia = 0;
    for(int i = 0; i < num_archivos; i++){
-    if(resultados[i].error){
+      if(resultados[i].error){
         hubo_error = 1;
         continue;
-    }
-    if (resultados[i].conteo > 0){
+      }
+      if (resultados[i].conteo > 0){
         hubo_coincidencia = 1;
-    }
-    if (num_archivos == 1){
-        printf("%s: %ld\n", archivos[i], resultados[i].conteo);
-    } 
-    else{
-        printf("%s: %ld\n", archivos[i], resultados[i].conteo);
-    }
+      }
+      if (num_archivos == 1){
+        printf("%s:%ld\n", archivos[i], resultados[i].conteo);
+      } 
+      else{
+        printf("%s:%ld\n", archivos[i], resultados[i].conteo);
+      }
    }
 
 

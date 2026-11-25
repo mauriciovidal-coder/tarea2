@@ -1,0 +1,10 @@
+datos/num1.txt:8782
+datos/num2.txt:18455
+datos/num3.txt:27237
+datos/num4.txt:45739
+datos/num5.txt:54521
+datos/num6.txt:64194
+datos/num7.txt:72976
+datos/num8.txt:91478
+datos/texto.txt:0
+datos/vacio.txt:0
